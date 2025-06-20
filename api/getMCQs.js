@@ -13,7 +13,7 @@ const openai = new OpenAI({
  */
 async function generateMCQs(transcript, numQuestions = 20) {
   const prompt = `
-You are an expert teacher. Based on the transcript below, generate exactly ${numQuestions} questions with varying formats:
+You are an expert teacher. Based on the transcript below and make sure to consider only subject related information don't consider general conversation, generate exactly ${numQuestions} questions with varying formats:
 
 - MCQ_SINGLE_CORRECT (with 4 options and one correct answer),
 - MCQ_MULTIPLE_CORRECT (with 4 options and multiple correct answers),
