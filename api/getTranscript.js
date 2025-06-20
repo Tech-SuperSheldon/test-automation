@@ -1,4 +1,4 @@
-const axios = require("axios");
+import axios from "axios";
 
 async function parseTranscriptFromVTT(url) {
   try {
@@ -35,4 +35,4 @@ async function parseTranscriptFromVTT(url) {
   }
 }
 
-module.exports = parseTranscriptFromVTT;
+export default parseTranscriptFromVTT;

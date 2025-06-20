@@ -1,6 +1,6 @@
-const getSessionDetails = require("./getSessionDetails");
-const parseTranscriptFromVTT = require("./getTranscript");
-const generateMCQList = require("./getMCQs");
+import getSessionDetails from "./getSessionDetails.js";
+import parseTranscriptFromVTT from "./getTranscript.js";
+import generateMCQList from "./getMCQs.js";
 
 const generateMCQs = async (session_id) => {
   try {
@@ -44,4 +44,4 @@ const generateMCQs = async (session_id) => {
   }
 };
 
-module.exports = generateMCQs;
+export default generateMCQs;

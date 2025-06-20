@@ -1,5 +1,7 @@
-const axios = require("axios");
-require("dotenv").config();
+import axios from "axios";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 /**
  * Publishes a test on Wise with time settings.
@@ -8,7 +10,6 @@ require("dotenv").config();
  */
 async function publishTest(testId, classId) {
   const url = `${process.env.WISE_EXAM_API_HOST}/api/v1/teacher/tests/${testId}/activate`;
-
 
   const payload = {
     class_id: classId,
@@ -45,4 +46,4 @@ async function publishTest(testId, classId) {
   }
 }
 
-module.exports = publishTest;
+export default publishTest;

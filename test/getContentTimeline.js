@@ -1,5 +1,7 @@
-const axios = require("axios");
-require("dotenv").config();
+import axios from "axios";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const getContentTimeline = async (classId) => {
   try {
@@ -30,4 +32,4 @@ const getContentTimeline = async (classId) => {
   }
 };
 
-module.exports = getContentTimeline;
+export default getContentTimeline;

@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Auto-generates tests from Wise lecture transcripts using OpenAI",
   "main": "server.js",
+  "type": "module",
   "scripts": {
     "start": "node server.js"
   },

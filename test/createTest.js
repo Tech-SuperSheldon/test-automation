@@ -1,5 +1,7 @@
-const axios = require("axios");
-require("dotenv").config();
+import axios from "axios";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const createTest = async (classId, sectionId, title) => {
   try {
@@ -59,4 +61,4 @@ const createTest = async (classId, sectionId, title) => {
   }
 };
 
-module.exports = createTest;
+export default createTest;

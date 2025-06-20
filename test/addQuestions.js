@@ -1,5 +1,5 @@
-const axios = require("axios");
-const dotenv = require("dotenv");
+import axios from "axios";
+import dotenv from "dotenv";
 dotenv.config();
 
 const addQuestionsToTest = async (testId, classId, questions) => {
@@ -70,4 +70,4 @@ const addQuestionsToTest = async (testId, classId, questions) => {
   }
 };
 
-module.exports = addQuestionsToTest;
+export default addQuestionsToTest;

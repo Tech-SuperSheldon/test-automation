@@ -1,15 +1,23 @@
-const express = require("express");
-const bodyParser = require("body-parser");
-const fetch = require("node-fetch");
-require("dotenv").config();
+import express from "express";
+import bodyParser from "body-parser";
+import fetch from "node-fetch";
+import dotenv from "dotenv";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
+import path from "path";
 
-const getSessionDetails = require("./api/getSessionDetails");
-const getContentTimeline = require("./test/getContentTimeline");
-const createTest = require("./test/createTest");
-const addQuestions = require("./test/addQuestions");
-const updateTestSetting = require("./test/updateTestSettings");
-const generateMcqsFromTranscript = require("./api/generateMcqsFromTranscript");
-const publishTest = require("./test/publishTest");
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+dotenv.config();
+
+import getSessionDetails from "./api/getSessionDetails.js";
+import getContentTimeline from "./test/getContentTimeline.js";
+import createTest from "./test/createTest.js";
+import addQuestions from "./test/addQuestions.js";
+import updateTestSetting from "./test/updateTestSettings.js";
+import generateMcqsFromTranscript from "./api/generateMcqsFromTranscript.js";
+import publishTest from "./test/publishTest.js";
 
 const app = express();
 app.use(bodyParser.json());

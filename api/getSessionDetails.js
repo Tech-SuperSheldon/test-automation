@@ -1,5 +1,7 @@
-const axios = require("axios");
-require("dotenv").config();
+import axios from "axios";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const getSessionDetails = async (session_id) => {
   try {
@@ -54,4 +56,4 @@ const getSessionDetails = async (session_id) => {
   }
 };
 
-module.exports = getSessionDetails;
+export default getSessionDetails;
