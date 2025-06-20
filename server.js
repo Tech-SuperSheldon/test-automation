@@ -110,32 +110,66 @@ app.post("/generate-test", async (req, res) => {
 // ✅ STEP 2: Webhook Endpoint (Auto-trigger)
 app.post("/webhook/transcript-generated", async (req, res) => {
   try {
-    const sessionId = req?.body?.payload?.sessionId;
+    console.log(
+      "📡 Webhook received with payload:",
+      JSON.stringify(req.body, null, 2)
+    );
+
+    // Extract sessionId from the payload
+    const sessionId = req.body?.payload?.sessionId;
 
     if (!sessionId) {
-      console.error("❌ sessionId missing in webhook payload:", req.body);
+      console.error(
+        "❌ sessionId missing in webhook payload. Full payload:",
+        JSON.stringify(req.body, null, 2)
+      );
       return res.status(400).json({
         error: true,
         message: "❌ sessionId not found in webhook payload",
       });
     }
 
-    console.log("📡 Webhook Triggered | Session ID:", sessionId);
+    console.log("✅ Extracted sessionId:", sessionId);
+
+    // Get the base URL from the request
+    const baseUrl =
+      process.env.BASE_URL ||
+      "https://supersheldon-test-automation.onrender.com";
+    const generateTestUrl = `${baseUrl}/generate-test`;
+
+    console.log(
+      "🔄 Making request to generate-test endpoint:",
+      generateTestUrl
+    );
+    // Important: We need to use session_id here to match the generate-test endpoint's expected format
+    const requestPayload = { session_id: sessionId };
+    console.log("📤 Request payload:", requestPayload);
 
     // Internally call /generate-test to reuse existing logic
-    const testResponse = await fetch("https://supersheldon-test-automation.onrender.com/generate-test", {
+    const testResponse = await fetch(generateTestUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ session_id: sessionId }),
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(requestPayload),
     });
 
+    console.log("📥 Response status:", testResponse.status);
     const data = await testResponse.json();
+    console.log("📥 Response data:", JSON.stringify(data, null, 2));
 
     if (!data.success) {
-      console.error("❌ Test generation failed via webhook:", data);
+      console.error(
+        "❌ Test generation failed via webhook. Response:",
+        JSON.stringify(data, null, 2)
+      );
       return res.status(500).json({
         error: true,
-        message: "❌ Test generation failed via webhook",
+        message: `❌ Test generation failed via webhook: ${
+          data.message || "Unknown error"
+        }`,
+        details: data,
       });
     }
 
@@ -147,10 +181,10 @@ app.post("/webhook/transcript-generated", async (req, res) => {
       questionCount: data.questionCount,
     });
   } catch (err) {
-    console.error("🔥 Webhook error:", err.message);
+    console.error("🔥 Webhook error:", err.message, "\nStack:", err.stack);
     return res.status(500).json({
       error: true,
-      message: "Internal Server Error in webhook handler",
+      message: `Internal Server Error in webhook handler: ${err.message}`,
     });
   }
 });
