@@ -31,7 +31,30 @@ const getSessionDetails = async (session_id) => {
 
     const transcriptUrl = session.rawTranscript?.[0]?.url || null;
 
+    // Get the main user's ID and name
+    const mainUserId = session.userId?._id;
+    const mainUserName = session.userId?.name?.trim();
+
+    // Get all participants
+    const participants = session.participants || [];
+
+    // Find participants whose names don't match the main user's name
+    const nonMatchingParticipants = participants.filter((participant) => {
+      const participantName = participant.name?.trim();
+      return (
+        participantName &&
+        participantName.toLowerCase() !== mainUserName?.toLowerCase()
+      );
+    });
+
+    // Get wiseUserIds from non-matching participants
+    const studentId = nonMatchingParticipants
+      .map((participant) => participant.wiseUserId)
+      .filter((id) => id); // Filter out any undefined/null IDs
+
     return {
+      studentId, // Array of wiseUserIds where name doesn't match
+      mainUserId, // The main user's ID for reference
       sessionId: session._id,
       classId: session.classId,
       className: session.className,

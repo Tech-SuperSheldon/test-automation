@@ -1,28 +1,42 @@
 import { OpenAI } from "openai";
-import dotenv from "dotenv";
-
-dotenv.config();
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
 /**
- * Generates structured MCQs from a given transcript.
- * @param {string} transcript - Plain text of the transcript.
- * @param {number} numQuestions - Number of questions to generate.
- * @returns {Array|null} - Array of questions or null on failure.
+ * Removes duplicate questions based on text content
  */
-async function generateMCQs(transcript, numQuestions = 20) {
+function removeDuplicates(questions) {
+  const seen = new Set();
+  return questions.filter((q) => {
+    const key = q.text.trim().toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+/**
+ * Core OpenAI prompt + response logic
+ */
+async function callOpenAI(transcript, numQuestions, locationContext) {
+  const {
+    city = "Unknown",
+    state = "Unknown",
+    country = "Unknown",
+  } = locationContext;
+
   const prompt = `
-You are an expert teacher. Based on the transcript below and make sure to consider only subject related information don't consider general conversation, generate exactly ${numQuestions} questions with varying formats:
+You are an expert teacher creating questions for a student from ${city}, ${state}, ${country}. 
+Based on the transcript below, and making sure to ignore general conversation, generate exactly ${numQuestions} questions with varying formats:
 
-- MCQ_SINGLE_CORRECT (with 4 options and one correct answer),
-- MCQ_MULTIPLE_CORRECT (with 4 options and multiple correct answers),
+- MCQ_SINGLE_CORRECT (4 options, 1 correct),
+- MCQ_MULTIPLE_CORRECT (4 options, multiple correct),
 - INTEGER_ANSWER (numerical),
-- FILL_IN_THE_BLANK (1 or 2 words only).
+- FILL_IN_THE_BLANK (1–2 words only).
 
-Strictly return a JSON array in this format:
+Use examples relevant to the student’s region when possible. Strictly return a valid JSON array like this:
 [
   {
     "text": "Question 1",
@@ -52,46 +66,66 @@ Transcript:
 """${transcript}"""
 `;
 
+  const response = await openai.chat.completions.create({
+    model: "gpt-3.5-turbo",
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0.3,
+  });
+
+  const content = response.choices[0]?.message?.content?.trim();
+  if (!content) throw new Error("Empty response from OpenAI");
+
   try {
-    const response = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.3, // More deterministic
-    });
+    return JSON.parse(content);
+  } catch (jsonError) {
+    const jsonStart = content.indexOf("[");
+    const jsonEnd = content.lastIndexOf("]") + 1;
+    const jsonLike = content.slice(jsonStart, jsonEnd);
+    return JSON.parse(jsonLike);
+  }
+}
 
-    const content = response.choices[0]?.message?.content?.trim();
-    if (!content) throw new Error("Empty response from OpenAI");
+/**
+ * Ensures exactly `numQuestions` are returned, retrying if fewer are generated.
+ */
+async function generateMCQs(
+  transcript,
+  numQuestions = 20,
+  locationContext = {}
+) {
+  let finalQuestions = [];
 
-    // Try parsing response
-    let parsed;
-    try {
-      parsed = JSON.parse(content);
-    } catch (jsonError) {
-      console.warn("⚠️ Raw response not JSON, trying to extract JSON block...");
-      const jsonStart = content.indexOf("[");
-      const jsonEnd = content.lastIndexOf("]") + 1;
-      const jsonLike = content.slice(jsonStart, jsonEnd);
-      try {
-        parsed = JSON.parse(jsonLike);
-      } catch (e) {
-        console.error("❌ Failed to parse OpenAI MCQ response:", e.message);
-        return null;
+  try {
+    while (finalQuestions.length < numQuestions) {
+      const remaining = numQuestions - finalQuestions.length;
+      const newQuestions = await callOpenAI(
+        transcript,
+        remaining,
+        locationContext
+      );
+      if (!Array.isArray(newQuestions) || newQuestions.length === 0) {
+        console.warn("⚠️ No new questions returned in retry.");
+        break;
       }
+
+      finalQuestions.push(...newQuestions);
+      finalQuestions = removeDuplicates(finalQuestions);
     }
 
-    if (!Array.isArray(parsed) || parsed.length === 0) {
-      console.error("❌ OpenAI returned empty or invalid questions.");
-      return null;
+    // Trim to exactly numQuestions if exceeded
+    if (finalQuestions.length > numQuestions) {
+      finalQuestions = finalQuestions.slice(0, numQuestions);
     }
 
-    // ✅ Basic validation of structure
-    const isValid = parsed.every((q) => q.text && q.question_type && q.answer);
+    const isValid = finalQuestions.every(
+      (q) => q.text && q.answer && q.question_type
+    );
     if (!isValid) {
-      console.error("❌ One or more questions are missing required fields.");
+      console.error("❌ One or more final questions missing required fields.");
       return null;
     }
 
-    return parsed;
+    return finalQuestions;
   } catch (err) {
     console.error("🔥 Error generating MCQs from transcript:", err.message);
     return null;
