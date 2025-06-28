@@ -16,28 +16,26 @@ function removeDuplicates(questions) {
 }
 
 /**
- * Claude 3 Haiku prompt + response logic via OpenRouter
+ * Claude 3 Haiku request using structured, grade-aware prompt
  */
 async function callClaudeHaiku(transcript, numQuestions, locationContext) {
   const {
     city = "Unknown",
     state = "Unknown",
     country = "Unknown",
-    grade = "Unknown",
+    grade = "8", // fallback
   } = locationContext;
 
   const prompt = `
-You are an expert, student-centered teacher designing *assessment questions* for a student in grade from ${city}, ${state}, ${country}. Your goal is to generate **exactly ${numQuestions} questions** using ONLY the provided transcript, ignoring general conversation and non-instructional content.
+You are an expert, student-centered teacher designing *assessment questions* for a student from ${city}, ${state}, ${country}. Your goal is to generate **exactly ${numQuestions} questions** using ONLY the provided transcript, ignoring general conversation and non-instructional content.
 
 *Instructions:*
 
 1. *Analyze the transcript* to extract grade-appropriate facts, concepts, and reasoning steps.
 2. *Tweak the difficulty and vocabulary* of each question.
-
    * Use simple, concrete language and direct recall for lower grades.
    * Use more complex, analytical, or open-ended questions for higher grades.
 3. *Vary the question formats* (use each type at least once if possible):
-
    * MCQ_SINGLE_CORRECT (4 options, 1 correct)
    * MCQ_MULTIPLE_CORRECT (4 options, multiple correct, comma-separated answers)
    * INTEGER_ANSWER (numerical)
@@ -46,8 +44,6 @@ You are an expert, student-centered teacher designing *assessment questions* for
 5. Strictly output a valid *JSON array* as specified below—no explanations or extraneous text.
 
 *JSON Output Example:*
-
-json
 [
   {
     "text": "Question 1",
@@ -73,20 +69,24 @@ json
   }
 ]
 
-Transcript:
-"""${transcript}"""
+*Transcript:*
+
+text
+${transcript}
 `;
 
   const headers = {
     Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
     "Content-Type": "application/json",
-    "HTTP-Referer": "https://supersheldon.wise.live",
-    "X-Title": "Test Generator",
+    "HTTP-Referer": "https://supersheldon.wise.live", // mandatory
+    "X-Title": "SuperSheldon Test Generator",
   };
 
   const body = {
     model: "anthropic/claude-3-haiku",
     messages: [{ role: "user", content: prompt }],
+    temperature: 0.4,
+    top_p: 0.9,
   };
 
   const response = await axios.post(
@@ -100,7 +100,7 @@ Transcript:
 
   try {
     return JSON.parse(content);
-  } catch (jsonError) {
+  } catch {
     const jsonStart = content.indexOf("[");
     const jsonEnd = content.lastIndexOf("]") + 1;
     const jsonLike = content.slice(jsonStart, jsonEnd);
@@ -135,20 +135,7 @@ async function generateMCQs(
       finalQuestions = removeDuplicates(finalQuestions);
     }
 
-    // Trim to exactly numQuestions if exceeded
-    if (finalQuestions.length > numQuestions) {
-      finalQuestions = finalQuestions.slice(0, numQuestions);
-    }
-
-    const isValid = finalQuestions.every(
-      (q) => q.text && q.answer && q.question_type
-    );
-    if (!isValid) {
-      console.error("❌ One or more final questions missing required fields.");
-      return null;
-    }
-
-    return finalQuestions;
+    return finalQuestions.slice(0, numQuestions);
   } catch (err) {
     console.error("🔥 Error generating MCQs from Claude:", err.message);
     return null;
