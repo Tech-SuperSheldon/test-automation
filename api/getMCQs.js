@@ -1,8 +1,6 @@
-import { OpenAI } from "openai";
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+import axios from "axios";
+import dotenv from "dotenv";
+dotenv.config();
 
 /**
  * Removes duplicate questions based on text content
@@ -18,9 +16,9 @@ function removeDuplicates(questions) {
 }
 
 /**
- * Core OpenAI prompt + response logic
+ * Claude 3 Haiku prompt + response logic via OpenRouter
  */
-async function callOpenAI(transcript, numQuestions, locationContext) {
+async function callClaudeHaiku(transcript, numQuestions, locationContext) {
   const {
     city = "Unknown",
     state = "Unknown",
@@ -28,37 +26,21 @@ async function callOpenAI(transcript, numQuestions, locationContext) {
   } = locationContext;
 
   const prompt = `
-You are an expert teacher creating questions for a student from ${city}, ${state}, ${country}. 
-Based on the transcript below, and making sure to ignore general conversation, generate exactly ${numQuestions} questions with varying formats:
-
+You are an expert teacher creating exactly ${numQuestions} diverse exam-style questions for a student in ${city}, ${state}, ${country}.
+Use ONLY subject-relevant content from the transcript.
+Question formats must be:
 - MCQ_SINGLE_CORRECT (4 options, 1 correct),
 - MCQ_MULTIPLE_CORRECT (4 options, multiple correct),
 - INTEGER_ANSWER (numerical),
 - FILL_IN_THE_BLANK (1–2 words only).
 
-Use examples relevant to the student’s region when possible. Strictly return a valid JSON array like this:
+Strictly return a JSON array like:
 [
   {
-    "text": "Question 1",
-    "options": { "a": "Red", "b": "Blue", "c": "Green", "d": "Black" },
+    "text": "What is ...?",
+    "options": { "a": "A", "b": "B", "c": "C", "d": "D" },
     "answer": "b",
     "question_type": "MCQ_SINGLE_CORRECT"
-  },
-  {
-    "text": "Question 2",
-    "options": { "a": "Red", "b": "Blue", "c": "Green", "d": "Black" },
-    "answer": "b,c",
-    "question_type": "MCQ_MULTIPLE_CORRECT"
-  },
-  {
-    "text": "Question 3",
-    "answer": "4",
-    "question_type": "INTEGER_ANSWER"
-  },
-  {
-    "text": "Question 4",
-    "answer": "new, old",
-    "question_type": "FILL_IN_THE_BLANK"
   }
 ]
 
@@ -66,14 +48,26 @@ Transcript:
 """${transcript}"""
 `;
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-3.5-turbo",
-    messages: [{ role: "user", content: prompt }],
-    temperature: 0.3,
-  });
+  const headers = {
+    Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+    "Content-Type": "application/json",
+    "HTTP-Referer": "https://supersheldon.wise.live",
+    "X-Title": "Test Generator",
+  };
 
-  const content = response.choices[0]?.message?.content?.trim();
-  if (!content) throw new Error("Empty response from OpenAI");
+  const body = {
+    model: "anthropic/claude-3-haiku",
+    messages: [{ role: "user", content: prompt }],
+  };
+
+  const response = await axios.post(
+    "https://openrouter.ai/api/v1/chat/completions",
+    body,
+    { headers }
+  );
+
+  const content = response.data.choices[0]?.message?.content?.trim();
+  if (!content) throw new Error("Empty response from Claude");
 
   try {
     return JSON.parse(content);
@@ -98,7 +92,7 @@ async function generateMCQs(
   try {
     while (finalQuestions.length < numQuestions) {
       const remaining = numQuestions - finalQuestions.length;
-      const newQuestions = await callOpenAI(
+      const newQuestions = await callClaudeHaiku(
         transcript,
         remaining,
         locationContext
@@ -127,7 +121,7 @@ async function generateMCQs(
 
     return finalQuestions;
   } catch (err) {
-    console.error("🔥 Error generating MCQs from transcript:", err.message);
+    console.error("🔥 Error generating MCQs from Claude:", err.message);
     return null;
   }
 }
