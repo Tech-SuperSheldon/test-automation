@@ -23,24 +23,53 @@ async function callClaudeHaiku(transcript, numQuestions, locationContext) {
     city = "Unknown",
     state = "Unknown",
     country = "Unknown",
+    grade = "Unknown",
   } = locationContext;
 
   const prompt = `
-You are an expert teacher creating exactly ${numQuestions} diverse exam-style questions for a student in ${city}, ${state}, ${country}.
-Use ONLY subject-relevant content from the transcript.
-Question formats must be:
-- MCQ_SINGLE_CORRECT (4 options, 1 correct),
-- MCQ_MULTIPLE_CORRECT (4 options, multiple correct),
-- INTEGER_ANSWER (numerical),
-- FILL_IN_THE_BLANK (1–2 words only).
+You are an expert, student-centered teacher designing *assessment questions* for a student in grade from ${city}, ${state}, ${country}. Your goal is to generate **exactly ${numQuestions} questions** using ONLY the provided transcript, ignoring general conversation and non-instructional content.
 
-Strictly return a JSON array like:
+*Instructions:*
+
+1. *Analyze the transcript* to extract grade-appropriate facts, concepts, and reasoning steps.
+2. *Tweak the difficulty and vocabulary* of each question.
+
+   * Use simple, concrete language and direct recall for lower grades.
+   * Use more complex, analytical, or open-ended questions for higher grades.
+3. *Vary the question formats* (use each type at least once if possible):
+
+   * MCQ_SINGLE_CORRECT (4 options, 1 correct)
+   * MCQ_MULTIPLE_CORRECT (4 options, multiple correct, comma-separated answers)
+   * INTEGER_ANSWER (numerical)
+   * FILL_IN_THE_BLANK (answer is 1–2 words)
+4. *Incorporate examples, references, or context specific to the student's region* (${city}, ${state}, ${country}) when relevant.
+5. Strictly output a valid *JSON array* as specified below—no explanations or extraneous text.
+
+*JSON Output Example:*
+
+json
 [
   {
-    "text": "What is ...?",
-    "options": { "a": "A", "b": "B", "c": "C", "d": "D" },
+    "text": "Question 1",
+    "options": { "a": "Red", "b": "Blue", "c": "Green", "d": "Black" },
     "answer": "b",
     "question_type": "MCQ_SINGLE_CORRECT"
+  },
+  {
+    "text": "Question 2",
+    "options": { "a": "Red", "b": "Blue", "c": "Green", "d": "Black" },
+    "answer": "b,c",
+    "question_type": "MCQ_MULTIPLE_CORRECT"
+  },
+  {
+    "text": "Question 3",
+    "answer": "4",
+    "question_type": "INTEGER_ANSWER"
+  },
+  {
+    "text": "Question 4",
+    "answer": "new, old",
+    "question_type": "FILL_IN_THE_BLANK"
   }
 ]
 
